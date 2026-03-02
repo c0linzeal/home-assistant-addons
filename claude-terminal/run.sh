@@ -25,8 +25,6 @@ init_environment() {
     chmod 755 "$data_home" "$config_dir" "$cache_dir" "$state_dir" "$claude_config_dir"
 
     # Ensure Claude native binary is available at $HOME/.local/bin/claude
-    # The native installer places it at /root/.local/bin/claude during Docker build,
-    # but at runtime HOME=/data/home, so Claude's self-check looks in /data/home/.local/bin/
     local native_bin_dir="$data_home/.local/bin"
     if [ ! -d "$native_bin_dir" ]; then
         mkdir -p "$native_bin_dir"
@@ -83,12 +81,9 @@ migrate_legacy_auth_files() {
         if [ -d "$legacy_path" ] && [ "$(ls -A "$legacy_path" 2>/dev/null)" ]; then
             bashio::log.info "Migrating auth files from: $legacy_path"
             
-            # Copy files to new location
             if cp -r "$legacy_path"/* "$target_dir/" 2>/dev/null; then
-                # Set proper permissions
                 find "$target_dir" -type f -exec chmod 600 {} \;
                 
-                # Create compatibility symlink if this is a standard location
                 if [[ "$legacy_path" == "/root/.config/anthropic" ]] || [[ "$legacy_path" == "/root/.anthropic" ]]; then
                     rm -rf "$legacy_path"
                     ln -sf "$target_dir" "$legacy_path"
@@ -111,7 +106,8 @@ migrate_legacy_auth_files() {
 # Install required tools
 install_tools() {
     bashio::log.info "Installing additional tools..."
-    if ! apk add --no-cache ttyd jq curl tmux; then
+    if ! apt-get update && apt-get install -y --no-install-recommends ttyd jq curl tmux \
+        && rm -rf /var/lib/apt/lists/*; then
         bashio::log.error "Failed to install required tools"
         exit 1
     fi
@@ -123,16 +119,16 @@ install_persistent_packages() {
     bashio::log.info "Checking for persistent packages..."
 
     local persist_config="/data/persistent-packages.json"
-    local apk_packages=""
+    local apt_packages=""
     local pip_packages=""
 
-    # Collect APK packages from Home Assistant config
+    # Collect apt packages from Home Assistant config
     if bashio::config.has_value 'persistent_apk_packages'; then
-        local config_apk
-        config_apk=$(bashio::config 'persistent_apk_packages')
-        if [ -n "$config_apk" ] && [ "$config_apk" != "null" ]; then
-            apk_packages="$config_apk"
-            bashio::log.info "Found APK packages in config: $apk_packages"
+        local config_apt
+        config_apt=$(bashio::config 'persistent_apk_packages')
+        if [ -n "$config_apt" ] && [ "$config_apt" != "null" ]; then
+            apt_packages="$config_apt"
+            bashio::log.info "Found apt packages in config: $apt_packages"
         fi
     fi
 
@@ -150,14 +146,12 @@ install_persistent_packages() {
     if [ -f "$persist_config" ]; then
         bashio::log.info "Found local persistent packages config"
 
-        # Get APK packages from local config
-        local local_apk
-        local_apk=$(jq -r '.apk_packages | join(" ")' "$persist_config" 2>/dev/null || echo "")
-        if [ -n "$local_apk" ]; then
-            apk_packages="$apk_packages $local_apk"
+        local local_apt
+        local_apt=$(jq -r '.apk_packages | join(" ")' "$persist_config" 2>/dev/null || echo "")
+        if [ -n "$local_apt" ]; then
+            apt_packages="$apt_packages $local_apt"
         fi
 
-        # Get pip packages from local config
         local local_pip
         local_pip=$(jq -r '.pip_packages | join(" ")' "$persist_config" 2>/dev/null || echo "")
         if [ -n "$local_pip" ]; then
@@ -166,17 +160,17 @@ install_persistent_packages() {
     fi
 
     # Trim whitespace and remove duplicates
-    apk_packages=$(echo "$apk_packages" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+    apt_packages=$(echo "$apt_packages" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
     pip_packages=$(echo "$pip_packages" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
 
-    # Install APK packages
-    if [ -n "$apk_packages" ]; then
-        bashio::log.info "Installing persistent APK packages: $apk_packages"
+    # Install apt packages
+    if [ -n "$apt_packages" ]; then
+        bashio::log.info "Installing persistent apt packages: $apt_packages"
         # shellcheck disable=SC2086
-        if apk add --no-cache $apk_packages; then
-            bashio::log.info "APK packages installed successfully"
+        if apt-get install -y --no-install-recommends $apt_packages && rm -rf /var/lib/apt/lists/*; then
+            bashio::log.info "apt packages installed successfully"
         else
-            bashio::log.warning "Some APK packages failed to install"
+            bashio::log.warning "Some apt packages failed to install"
         fi
     fi
 
@@ -191,14 +185,13 @@ install_persistent_packages() {
         fi
     fi
 
-    if [ -z "$apk_packages" ] && [ -z "$pip_packages" ]; then
+    if [ -z "$apt_packages" ] && [ -z "$pip_packages" ]; then
         bashio::log.info "No persistent packages configured"
     fi
 }
 
 # Setup session picker script
 setup_session_picker() {
-    # Copy session picker script from built-in location
     if [ -f "/opt/scripts/claude-session-picker.sh" ]; then
         if ! cp /opt/scripts/claude-session-picker.sh /usr/local/bin/claude-session-picker; then
             bashio::log.error "Failed to copy claude-session-picker script"
@@ -210,13 +203,11 @@ setup_session_picker() {
         bashio::log.warning "Session picker script not found, using auto-launch mode only"
     fi
 
-    # Setup authentication helper if it exists
     if [ -f "/opt/scripts/claude-auth-helper.sh" ]; then
         chmod +x /opt/scripts/claude-auth-helper.sh
         bashio::log.info "Authentication helper script ready"
     fi
 
-    # Setup persist-install script if it exists
     if [ -f "/opt/scripts/persist-install.sh" ]; then
         if ! cp /opt/scripts/persist-install.sh /usr/local/bin/persist-install; then
             bashio::log.warning "Failed to copy persist-install script"
@@ -227,56 +218,42 @@ setup_session_picker() {
     fi
 }
 
-# Legacy monitoring functions removed - using simplified /data approach
-
 # Determine Claude launch command based on configuration
 get_claude_launch_command() {
     local auto_launch_claude
     
-    # Get configuration value, default to true for backward compatibility
     auto_launch_claude=$(bashio::config 'auto_launch_claude' 'true')
     
-    if [ "$auto_launch_claude" = "true" ]; then                                                                 
-        # Use tmux for session persistence - attach to existing or create new                                   
-        echo "tmux new-session -A -s claude 'claude'"                                                           
-    else                                                                                                        
-        # New behavior: show interactive session picker (also with tmux persistence)                            
-        if [ -f /usr/local/bin/claude-session-picker ]; then                                                    
-            echo "tmux new-session -A -s claude-picker '/usr/local/bin/claude-session-picker'"                  
-        else                                                                                                    
-            # Fallback if session picker is missing                                                             
-            bashio::log.warning "Session picker not found, falling back to auto-launch"                         
-            echo "tmux new-session -A -s claude 'claude'"                                                       
-        fi                                                                                                      
-    fi                 
+    if [ "$auto_launch_claude" = "true" ]; then
+        echo "tmux new-session -A -s claude 'claude'"
+    else
+        if [ -f /usr/local/bin/claude-session-picker ]; then
+            echo "tmux new-session -A -s claude-picker '/usr/local/bin/claude-session-picker'"
+        else
+            bashio::log.warning "Session picker not found, falling back to auto-launch"
+            echo "tmux new-session -A -s claude 'claude'"
+        fi
+    fi
 }
-
 
 # Start main web terminal
 start_web_terminal() {
     local port=7681
     bashio::log.info "Starting web terminal on port ${port}..."
     
-    # Log environment information for debugging
     bashio::log.info "Environment variables:"
     bashio::log.info "ANTHROPIC_CONFIG_DIR=${ANTHROPIC_CONFIG_DIR}"
     bashio::log.info "HOME=${HOME}"
 
-    # Get the appropriate launch command based on configuration
     local launch_command
     launch_command=$(get_claude_launch_command)
     
-    # Log the configuration being used
     local auto_launch_claude
     auto_launch_claude=$(bashio::config 'auto_launch_claude' 'true')
     bashio::log.info "Auto-launch Claude: ${auto_launch_claude}"
     
-    # Set TTYD environment variable for tmux configuration
-    # This disables tmux mouse mode since ttyd has better mouse handling for web terminals
     export TTYD=1
 
-    # Run ttyd with keepalive configuration to prevent WebSocket disconnects
-    # See: https://github.com/heytcass/home-assistant-addons/issues/24
     exec ttyd \
         --port "${port}" \
         --interface 0.0.0.0 \
@@ -300,10 +277,7 @@ run_health_check() {
 # Main execution
 main() {
     bashio::log.info "Initializing Claude Terminal add-on..."
-
-    # Run diagnostics first (especially helpful for VirtualBox issues)
     run_health_check
-
     init_environment
     install_tools
     setup_session_picker
