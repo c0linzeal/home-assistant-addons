@@ -22,6 +22,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux \
     && rm -rf /var/lib/apt/lists/* \
     && pip3 install yq --break-system-packages
+# Install ttyd binary directly (not in Debian repos)
+RUN curl -L https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 -o /usr/local/bin/ttyd \
+    && chmod +x /usr/local/bin/ttyd
 
 # Install Claude Code CLI using native installer
 # The installer places the binary in ~/.local/bin
