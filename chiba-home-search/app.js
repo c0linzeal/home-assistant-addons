@@ -232,6 +232,13 @@ function listingCard(x, rate) {
 async function renderLiveListings(s) {
   const statusEl = $("live-status");
   const listEl = $("live-listings");
+
+  if (s.type.key === "land") {
+    statusEl.textContent = "Live listings aren't available for Land searches yet — use the portal search links above.";
+    listEl.innerHTML = "";
+    return;
+  }
+
   statusEl.textContent = "Searching portals…";
   listEl.innerHTML = "";
 

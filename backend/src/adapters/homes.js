@@ -176,50 +176,52 @@ function parseListings(html, propertyType = 'used_apartment') {
     // ── Unit rows (used_apartment and used_house) ─────────────────────────────
     const unitRows = card.find('tr.raSpecRow');
 
+    // ── Building-level metadata (used by both unit-row path and skeleton fallback) ──
+
+    // Thumbnail: img.prg-lazy → data-original (building-level outer card)
+    let thumbnail = null;
+    const lazyImg = card.find('img.prg-lazy').first();
+    if (lazyImg.length) {
+      thumbnail = lazyImg.attr('data-original') || lazyImg.attr('src') || null;
+    }
+    if (!thumbnail || /loading/i.test(thumbnail)) {
+      const noscriptSrc = card.find('noscript img').first().attr('src');
+      if (noscriptSrc) thumbnail = noscriptSrc;
+    }
+    if (thumbnail && /loading/i.test(thumbnail)) thumbnail = null;
+
+    // Building age from outer th with 築年月
+    let ageRaw = null;
+    card.find('th').each((_, th) => {
+      if ($(th).text().includes('築年月')) {
+        ageRaw = $(th).next('td').text().trim();
+        return false;
+      }
+    });
+    const buildingAge = parseBuildingAge(ageRaw);
+
+    // Transit + address from outer th containing "交通" — br-separated:
+    // first line = transit, second line = address.
+    let station = null;
+    let walkMin = null;
+    let address = null;
+    card.find('th').each((_, th) => {
+      if ($(th).text().includes('交通')) {
+        const td = $(th).next('td');
+        const cellHtml = td.html() || '';
+        const parts = cellHtml.split(/<br\s*\/?>/i);
+        const transitText = toHalfWidth(parts[0].replace(/<[^>]+>/g, '').trim());
+        const addrText = toHalfWidth((parts[1] || '').replace(/<[^>]+>/g, '').trim());
+        const transit = parseHomesTransit(transitText);
+        station = transit.station;
+        walkMin = transit.walkMin;
+        address = addrText ? addrText.replace(/ヶ/g, 'ケ') : null;
+        return false;
+      }
+    });
+
     if (unitRows.length > 0) {
       // ── Has unit rows: used_apartment or used_house ──────────────────────────
-
-      // Thumbnail: img.prg-lazy → data-original (building-level outer card)
-      let thumbnail = null;
-      const lazyImg = card.find('img.prg-lazy').first();
-      if (lazyImg.length) {
-        thumbnail = lazyImg.attr('data-original') || lazyImg.attr('src') || null;
-      }
-      if (!thumbnail || /loading/i.test(thumbnail)) {
-        const noscriptSrc = card.find('noscript img').first().attr('src');
-        if (noscriptSrc) thumbnail = noscriptSrc;
-      }
-      if (thumbnail && /loading/i.test(thumbnail)) thumbnail = null;
-
-      // Building age from outer sec-specB (or any th with 築年月)
-      let ageRaw = null;
-      card.find('th').each((_, th) => {
-        if ($(th).text().includes('築年月')) {
-          ageRaw = $(th).next('td').text().trim();
-          return false;
-        }
-      });
-      const buildingAge = parseBuildingAge(ageRaw);
-
-      // Transit + address from outer th containing "交通" — br-separated:
-      // first line = transit, second line = address.
-      let station = null;
-      let walkMin = null;
-      let address = null;
-      card.find('th').each((_, th) => {
-        if ($(th).text().includes('交通')) {
-          const td = $(th).next('td');
-          const cellHtml = td.html() || '';
-          const parts = cellHtml.split(/<br\s*\/?>/i);
-          const transitText = toHalfWidth(parts[0].replace(/<[^>]+>/g, '').trim());
-          const addrText = toHalfWidth((parts[1] || '').replace(/<[^>]+>/g, '').trim());
-          const transit = parseHomesTransit(transitText);
-          station = transit.station;
-          walkMin = transit.walkMin;
-          address = addrText ? addrText.replace(/ヶ/g, 'ケ') : null;
-          return false;
-        }
-      });
 
       // Flatten unit rows — one listing per unit
       unitRows.each((_, rowEl) => {
@@ -260,7 +262,9 @@ function parseListings(html, propertyType = 'used_apartment') {
         const listing = parseFlatTableCard($, card, propertyType);
         if (listing) listings.push(listing);
       } else if (title && url) {
-        // Skeleton fallback for used types with unexpectedly zero unit rows
+        // Skeleton fallback for used types with unexpectedly zero unit rows.
+        // Use building-level metadata already extracted above; price/layout/area are
+        // unit-level and legitimately absent.
         listings.push({
           source: 'homes',
           title,
@@ -268,11 +272,11 @@ function parseListings(html, propertyType = 'used_apartment') {
           layout: null,
           areaSqm: null,
           landSqm: null,
-          buildingAge: null,
-          walkMin: null,
-          station: null,
-          address: null,
-          thumbnail: null,
+          buildingAge,
+          walkMin,
+          station,
+          address,
+          thumbnail,
           url,
         });
       }
