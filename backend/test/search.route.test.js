@@ -12,6 +12,7 @@ test('GET /api/search returns cached portal results for all adapters without net
   const filters = {
     jis: '', cityJa: '', minYen: null, maxYen: null,
     layoutKey: 'any', walkMax: null, ageMaxYears: null,
+    propertyType: 'used_apartment',
   };
 
   // Seed every adapter's cache so no network calls are made

@@ -237,6 +237,7 @@ async function renderLiveListings(s) {
   if (s.layout.key !== "any") params.set("layout", s.layout.key);
   if (s.usesAge && s.age.key !== "any") params.set("age", s.age.key);
   if (s.walk.key !== "any") params.set("walk", s.walk.key);
+  params.set("type", s.type.key);
 
   const rate = parseNum($("rate").value) || 150;
 

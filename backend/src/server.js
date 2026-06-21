@@ -22,6 +22,7 @@ app.get('/api/search', async (req, res) => {
     layoutKey: typeof q.layout === 'string' ? q.layout : 'any',
     walkMax: toNum(q.walk),
     ageMaxYears: toNum(q.age),
+    propertyType: typeof q.type === 'string' && q.type ? q.type : 'used_apartment',
   };
   try {
     const result = await runSearch(filters);
