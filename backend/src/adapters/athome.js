@@ -4,8 +4,13 @@ const cheerio = require('cheerio');
 const {
   toHalfWidth, parseManYen, parseArea, parseBuildingAgeYears, parseTransit,
 } = require('../lib/normalize');
+const { fetchHtml } = require('../lib/http');
 
 const BASE = 'https://www.athome.co.jp';
+
+const PAGES_TO_FETCH = 3;
+const PAGE_DELAY_MS = 1500;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // AtHome detail rows are label-keyed: <strong>LABEL</strong><span>VALUE</span>.
 // Match by label text, not position (row count varies per card).
@@ -133,4 +138,36 @@ function applyFilters(listings, opts = {}) {
   });
 }
 
-module.exports = { parseListings, buildUrl, citySlugFor, applyFilters };
+// Fetch up to PAGES_TO_FETCH result pages, parse, then filter in code (AtHome's
+// price/layout/walk/age refine controls are not GET-addressable). When a city
+// has no AtHome slug we search prefecture-wide and narrow by address text.
+async function search(filters) {
+  const slug = citySlugFor(filters.jis);
+  const addressContains = (!slug && filters.cityJa && filters.jis) ? filters.cityJa : null;
+  const all = [];
+  for (let page = 1; page <= PAGES_TO_FETCH; page++) {
+    const url = buildUrl({ jis: filters.jis, page });
+    let html;
+    try {
+      html = await fetchHtml(url, { timeoutMs: 12000 });
+    } catch (err) {
+      if (page === 1) throw err;
+      break;
+    }
+    const parsed = parseListings(html);
+    if (parsed.length === 0) break;
+    all.push(...parsed);
+    if (page < PAGES_TO_FETCH) await sleep(PAGE_DELAY_MS);
+  }
+  const listings = applyFilters(all, {
+    minYen: filters.minYen,
+    maxYen: filters.maxYen,
+    layoutKey: filters.layoutKey,
+    walkMax: filters.walkMax,
+    ageMaxYears: filters.ageMaxYears,
+    addressContains,
+  });
+  return { source: 'athome', status: 'ok', count: listings.length, listings, scanned: all.length };
+}
+
+module.exports = { parseListings, buildUrl, citySlugFor, applyFilters, search };
