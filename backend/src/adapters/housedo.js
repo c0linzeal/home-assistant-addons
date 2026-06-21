@@ -12,6 +12,17 @@ const PAGES_TO_FETCH = 3;
 const PAGE_DELAY_MS = 1500;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// URL path prefix per property type
+const PATHS = {
+  used_apartment: 'used_mansion',
+  new_apartment:  'new_mansion',
+  used_house:     'used_ikkodate',
+  new_house:      'new_ikkodate',
+};
+
+// URL-encoded 千葉県
+const PREF_ENC = '%E5%8D%83%E8%91%89%E7%9C%8C';
+
 // HouseDo uses table.bukkendetails for each listing card.
 // Detail rows use <th>LABEL</th><td>VALUE</td> pairs within <tr>.
 // Some rows have multiple th/td pairs in a single row.
@@ -30,9 +41,12 @@ function readDetail($, card, label) {
   return value;
 }
 
-function parseListings(html) {
+// Parse listings from a HouseDo listing page HTML.
+// propertyType: 'used_apartment' | 'new_apartment' | 'used_house' | 'new_house'
+function parseListings(html, propertyType = 'used_apartment') {
   const $ = cheerio.load(html);
   const listings = [];
+  const isHouse = propertyType === 'used_house' || propertyType === 'new_house';
 
   $('table.bukkendetails:not([aria-hidden])').each((_, el) => {
     const card = $(el);
@@ -47,10 +61,19 @@ function parseListings(html) {
 
     // Detail fields
     const layoutRaw = readDetail($, card, '間取り');
-    const areaRaw = readDetail($, card, '専有面積');
     const ageRaw = readDetail($, card, '築年月');
     const addressRaw = readDetail($, card, '所在地');
     const transitRaw = readDetail($, card, '交通');
+
+    // Area: apartments use 専有面積; houses use 建物面積 (areaSqm) + 土地面積 (landSqm)
+    let areaRaw, landRaw;
+    if (isHouse) {
+      areaRaw = readDetail($, card, '建物面積');
+      landRaw = readDetail($, card, '土地面積');
+    } else {
+      areaRaw = readDetail($, card, '専有面積');
+      landRaw = null;
+    }
 
     // Thumbnail: img.estateImageLeft
     const thumbSrc = card.find('img.estateImageLeft').first().attr('src') || null;
@@ -73,6 +96,7 @@ function parseListings(html) {
       price: { yen: parseManYen(priceText), raw: toHalfWidth(priceText) },
       layout: layoutRaw ? toHalfWidth(layoutRaw) : null,
       areaSqm: areaRaw ? parseArea(areaRaw) : null,
+      landSqm: landRaw ? parseArea(landRaw) : null,
       buildingAge: ageRaw ? { raw: ageRaw, years: parseBuildingAgeYears(ageRaw) } : null,
       walkMin: transit ? transit.walkMin : null,
       station: transit ? transit.station : null,
@@ -91,19 +115,22 @@ function looksBlocked(html) {
   return false;
 }
 
-// HouseDo used-mansion listings for Chiba prefecture.
-// Page 1: /used_mansion/千葉県/list/
-// Page N: /used_mansion/千葉県/list/?pageNum=N
-function buildUrl({ page = 1 } = {}) {
-  const base = `${BASE}/used_mansion/%E5%8D%83%E8%91%89%E7%9C%8C/list/`;
+// Build the HouseDo listing URL.
+// propertyType maps to a path prefix via PATHS; default used_apartment.
+// Page 1: /{prefix}/{pref}/list/
+// Page N: /{prefix}/{pref}/list/?pageNum=N
+function buildUrl({ propertyType = 'used_apartment', page = 1 } = {}) {
+  const prefix = PATHS[propertyType] || PATHS.used_apartment;
+  const base = `${BASE}/${prefix}/${PREF_ENC}/list/`;
   return page > 1 ? `${base}?pageNum=${page}` : base;
 }
 
 async function search(filters) {
+  const propertyType = filters.propertyType || 'used_apartment';
   const all = [];
 
   for (let page = 1; page <= PAGES_TO_FETCH; page++) {
-    const url = buildUrl({ page });
+    const url = buildUrl({ propertyType, page });
     let html;
     try {
       html = await fetchHtml(url, { timeoutMs: 12000 });
@@ -119,9 +146,10 @@ async function search(filters) {
       break;
     }
 
-    const parsed = parseListings(html);
+    const parsed = parseListings(html, propertyType);
     if (parsed.length === 0) {
-      if (page === 1) {
+      // new_apartment may have zero inventory — that's fine, not an error
+      if (page === 1 && propertyType !== 'new_apartment') {
         throw new Error('HouseDo returned 0 listings on page 1 (possible structure change)');
       }
       break;
