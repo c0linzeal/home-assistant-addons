@@ -180,10 +180,10 @@ function esc(str) {
 }
 
 function listingCard(x) {
-  const yen = x.price && x.price.yen ? `¥${fmtInt(x.price.yen)}` : (x.price && x.price.raw) || "—";
+  const yen = x.price && x.price.yen ? `¥${fmtInt(x.price.yen)}` : esc((x.price && x.price.raw) || "—");
   const bits = [];
   if (x.layout) bits.push(esc(x.layout));
-  if (x.areaSqm) bits.push(`${x.areaSqm}m²`);
+  if (x.areaSqm) bits.push(esc(`${x.areaSqm}m²`));
   if (x.buildingAge && x.buildingAge.years != null) bits.push(`${x.buildingAge.years}y old`);
   if (x.walkMin != null) bits.push(`${x.walkMin} min walk`);
   const img = x.thumbnail
@@ -226,7 +226,7 @@ async function renderLiveListings(s) {
       statusEl.textContent = "AtHome live search is unavailable right now — use the links above.";
       return;
     }
-    if (!portal.listings.length) {
+    if (!(portal.listings && portal.listings.length)) {
       statusEl.textContent =
         `No matches in AtHome's latest used-apartment listings for these filters (scanned ${portal.scanned || 0}). Try a wider budget, or use the links above.`;
       return;
