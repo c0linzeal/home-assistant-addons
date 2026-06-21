@@ -34,7 +34,7 @@ function parseListings(html) {
   const $ = cheerio.load(html);
   const listings = [];
 
-  $('table.bukkendetails').each((_, el) => {
+  $('table.bukkendetails:not([aria-hidden])').each((_, el) => {
     const card = $(el);
 
     // Title: link in .bukken-tit header row
@@ -137,7 +137,7 @@ async function search(filters) {
     layoutKey: filters.layoutKey,
     walkMax: filters.walkMax,
     ageMaxYears: filters.ageMaxYears,
-    addressContains: (filters.cityJa && filters.jis) ? filters.cityJa : null,
+    addressContains: filters.cityJa || null,
   });
 
   return {
