@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chiba Home Search — buy a home in Chiba, in English</title>
+  <meta name="description" content="Search Japanese property portals for homes to buy in Chiba prefecture, using English. Set your budget and filters, get ready-made search links for SUUMO, LIFULL HOME'S and AtHome." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="hero-badge">🏡 千葉県 · Chiba Prefecture</div>
+      <h1>Chiba Home Search</h1>
+      <p class="tagline">
+        Looking to <strong>buy a home in Chiba</strong> but don't read Japanese?
+        Set your budget and what you want below — in English — and this tool builds
+        ready-to-click searches on Japan's big property sites, with everything
+        translated into the exact Japanese filters to use.
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- ============ SEARCH FORM ============ -->
+    <section class="card" aria-labelledby="form-h">
+      <h2 id="form-h">1 · What are you looking for?</h2>
+
+      <div class="grid">
+        <!-- Property type -->
+        <div class="field">
+          <label for="ptype">Property type</label>
+          <select id="ptype"></select>
+        </div>
+
+        <!-- City -->
+        <div class="field">
+          <label for="city">City / area in Chiba</label>
+          <select id="city"></select>
+        </div>
+
+        <!-- Layout -->
+        <div class="field">
+          <label for="layout">Layout (number of rooms)</label>
+          <select id="layout"></select>
+        </div>
+
+        <!-- Walk time -->
+        <div class="field">
+          <label for="walk">Distance to train station</label>
+          <select id="walk"></select>
+        </div>
+
+        <!-- Building age -->
+        <div class="field" id="age-field">
+          <label for="age">Building age <span class="hint">(used homes)</span></label>
+          <select id="age"></select>
+        </div>
+      </div>
+
+      <!-- Budget -->
+      <fieldset class="budget">
+        <legend>2 · Your budget</legend>
+        <div class="budget-row">
+          <div class="field">
+            <label for="cur">Enter amounts in</label>
+            <select id="cur">
+              <option value="jpy">¥ Japanese yen (JPY)</option>
+              <option value="usd">$ US dollars (USD)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="bmin">Minimum <span class="hint">(optional)</span></label>
+            <input type="text" id="bmin" inputmode="numeric" placeholder="e.g. 0" />
+          </div>
+          <div class="field">
+            <label for="bmax">Maximum</label>
+            <input type="text" id="bmax" inputmode="numeric" placeholder="e.g. 40000000" />
+          </div>
+          <div class="field" id="rate-field">
+            <label for="rate">Exchange rate <span class="hint">¥ per $1</span></label>
+            <input type="text" id="rate" inputmode="decimal" value="150" />
+          </div>
+        </div>
+        <p class="budget-readout" id="budget-readout">Enter a maximum budget to see it converted.</p>
+      </fieldset>
+
+      <button id="search-btn" class="primary">Build my searches →</button>
+    </section>
+
+    <!-- ============ RESULTS ============ -->
+    <section id="results" class="results" hidden>
+      <!-- Criteria summary -->
+      <div class="card criteria" aria-labelledby="crit-h">
+        <h2 id="crit-h">Your search, translated 🈁</h2>
+        <p class="muted">Here's exactly what to look for. When a site is in Japanese, right-click → "Translate to English" (Chrome) or use your browser's translate button.</p>
+        <ul id="criteria-list" class="criteria-list"></ul>
+      </div>
+
+      <!-- Portal links -->
+      <div class="card" aria-labelledby="portals-h">
+        <h2 id="portals-h">Open your search 🔍</h2>
+        <p class="muted">
+          Each site below opens its Chiba listings for your property type. Then apply
+          the budget &amp; filters from the panel above. The <strong>“Precise Google
+          search”</strong> button already bakes in your city, budget and layout — it's the
+          fastest way in, and pages open ready for browser translation.
+        </p>
+        <div id="portals" class="portals"></div>
+      </div>
+    </section>
+
+    <!-- ============ GLOSSARY ============ -->
+    <section class="card" aria-labelledby="gloss-h">
+      <h2 id="gloss-h">📖 Japanese real-estate glossary</h2>
+      <p class="muted">The terms you'll keep seeing on the listing sites, in plain English.</p>
+      <div id="glossary" class="glossary"></div>
+    </section>
+
+    <section class="card tips" aria-labelledby="tips-h">
+      <h2 id="tips-h">💡 Tips for buying as a non-Japanese speaker</h2>
+      <ul>
+        <li><strong>Translate the page:</strong> In Chrome, right-click anywhere → “Translate to English”. On phones, use the Google app or your browser's built-in translate.</li>
+        <li><strong>Prices are in 万円 (man-en = ×10,000 yen).</strong> “3,980万円” means ¥39,800,000. This tool shows you the figure to look for.</li>
+        <li><strong>Foreigners can buy property in Japan</strong> with no residency or citizenship requirement. Financing (a mortgage from a Japanese bank) is the harder part and usually needs residency + stable income.</li>
+        <li><strong>Budget extra ~6–8%</strong> on top of the price for taxes, agent fee, and registration costs.</li>
+        <li><strong>An English-speaking agent</strong> can pull the same listings and handle paperwork. Use these searches to find homes you like, then send the listing link to an agent.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <p>
+      Built to help you find a home in Chiba. This tool only links to public search
+      pages on third-party sites (SUUMO, LIFULL HOME'S, AtHome, Google) — it isn't
+      affiliated with them, and listings/prices live on those sites. Currency
+      conversions are approximate.
+    </p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
