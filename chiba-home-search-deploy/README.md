@@ -23,3 +23,4 @@ http://<server-LAN-IP>:8096/
 - Backend listens internally on :3000 (not exposed to the LAN); only nginx on :8096 is public.
 - AtHome price/layout/age/walk filters are applied in the backend (they are not GET-addressable on AtHome). The backend scans the first 3 result pages per search and caches results ~10 min.
 - Phase 0 covers AtHome + used apartments only.
+- Known limitation: AtHome currently bot-gates city-level result pages (returns an 認証中 challenge), so city-filtered live searches report "unavailable" and fall back to the click-out links; the prefecture-wide ("All of Chiba") search works. Full city-level live results would require a headless browser (future work).

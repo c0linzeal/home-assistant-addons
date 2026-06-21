@@ -74,6 +74,19 @@ function parseListings(html) {
   return listings;
 }
 
+// AtHome sometimes serves an anti-bot challenge page (esp. city-level URLs)
+// instead of listings: a small page titled 認証中 with a JS protection gate and
+// no listing cards. Detect it so we report "unavailable" rather than a false 0.
+function looksBlocked(html) {
+  if (!html) return true;
+  if (/認証中/.test(html)) return true;
+  if (/onProtectionInitialized|Reese84|Incapsula|_Incapsula_Resource/.test(html)) return true;
+  // A real listings page is large and contains the card container; a challenge
+  // shell is tiny. Treat a short page with no cards as blocked.
+  if (html.length < 20000 && !/card-box open/.test(html)) return true;
+  return false;
+}
+
 // JIS municipality code -> AtHome city slug. Only slugs confirmed present on
 // AtHome are mapped; everything else (incl. ward-split Chiba City 12100) falls
 // back to prefecture-wide so we never request a 404 path.
@@ -154,6 +167,12 @@ async function search(filters) {
       if (page === 1) throw err;
       break;
     }
+    if (looksBlocked(html)) {
+      if (page === 1) {
+        throw new Error('AtHome served an anti-bot challenge page (no listings retrievable)');
+      }
+      break; // later page blocked: keep what we have
+    }
     const parsed = parseListings(html);
     if (parsed.length === 0) break;
     all.push(...parsed);
@@ -170,4 +189,4 @@ async function search(filters) {
   return { source: 'athome', status: 'ok', count: listings.length, listings, scanned: all.length };
 }
 
-module.exports = { parseListings, buildUrl, citySlugFor, applyFilters, search };
+module.exports = { parseListings, buildUrl, citySlugFor, applyFilters, search, looksBlocked };
