@@ -170,7 +170,75 @@ function runSearch() {
   renderPortals(s);
   $("results").hidden = false;
   $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+  renderLiveListings(s);
 }
+
+function esc(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function listingCard(x) {
+  const yen = x.price && x.price.yen ? `¥${fmtInt(x.price.yen)}` : (x.price && x.price.raw) || "—";
+  const bits = [];
+  if (x.layout) bits.push(esc(x.layout));
+  if (x.areaSqm) bits.push(`${x.areaSqm}m²`);
+  if (x.buildingAge && x.buildingAge.years != null) bits.push(`${x.buildingAge.years}y old`);
+  if (x.walkMin != null) bits.push(`${x.walkMin} min walk`);
+  const img = x.thumbnail
+    ? `<img src="${esc(x.thumbnail)}" alt="" loading="lazy">`
+    : `<div class="noimg">No photo</div>`;
+  const loc = [x.address ? esc(x.address) : "", x.station ? esc(x.station) + "駅" : ""]
+    .filter(Boolean).join(" · ");
+  return `<a class="listing" target="_blank" rel="noopener" href="${esc(x.url || "#")}">
+    <div class="listing-thumb">${img}</div>
+    <div class="listing-body">
+      <div class="listing-price">${yen}</div>
+      <div class="listing-title">${esc(x.title || "")}</div>
+      <div class="listing-meta">${bits.join(" · ")}</div>
+      <div class="listing-loc">${loc}</div>
+    </div>
+  </a>`;
+}
+
+async function renderLiveListings(s) {
+  const statusEl = $("live-status");
+  const listEl = $("live-listings");
+  statusEl.textContent = "Searching AtHome…";
+  listEl.innerHTML = "";
+
+  const params = new URLSearchParams();
+  params.set("jis", s.city.jis || "");
+  params.set("cityJa", s.city.jis ? s.city.ja : "");
+  if (s.minYen != null) params.set("minYen", String(Math.round(s.minYen)));
+  if (s.maxYen != null) params.set("maxYen", String(Math.round(s.maxYen)));
+  if (s.layout.key !== "any") params.set("layout", s.layout.key);
+  if (s.usesAge && s.age.key !== "any") params.set("age", s.age.key);
+  if (s.walk.key !== "any") params.set("walk", s.walk.key);
+
+  try {
+    const res = await fetch(`/api/search?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const portal = (data.portals || [])[0];
+    if (!portal || portal.status !== "ok") {
+      statusEl.textContent = "AtHome live search is unavailable right now — use the links above.";
+      return;
+    }
+    if (!portal.listings.length) {
+      statusEl.textContent =
+        `No matches in AtHome's latest used-apartment listings for these filters (scanned ${portal.scanned || 0}). Try a wider budget, or use the links above.`;
+      return;
+    }
+    statusEl.textContent =
+      `${portal.listings.length} matching used apartments on AtHome${data.cached ? " (cached)" : ""}:`;
+    listEl.innerHTML = portal.listings.map(listingCard).join("");
+  } catch (err) {
+    statusEl.textContent = "Couldn't reach the live search service — use the links above.";
+  }
+}
+
 $("search-btn").addEventListener("click", runSearch);
 
 /* ---------- Glossary ---------- */
