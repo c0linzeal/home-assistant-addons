@@ -52,3 +52,12 @@ test('suumo buildUrl: base, city (sc), pagination', () => {
   const p2 = buildUrl({ jis: '', page: 2 });
   assert.ok(p2.includes('page=2'));
 });
+
+test('suumo buildUrl: umbrella code 12100 must NOT emit sc=; leaf code 12207 must emit sc=', () => {
+  // Chiba City (12100) is an umbrella code — SUUMO sc= doesn't accept it
+  assert.ok(!buildUrl({ jis: '12100', page: 1 }).includes('sc='),
+    'umbrella code 12100 should not produce sc= param');
+  // Chiba City Midori-ku (12207) is a leaf — sc= should be emitted
+  assert.ok(buildUrl({ jis: '12207', page: 1 }).includes('sc=12207'),
+    'leaf code 12207 should produce sc=12207');
+});

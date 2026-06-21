@@ -11,6 +11,10 @@ const BASE = 'https://suumo.jp';
 // MVP: used apartments (chuko mansion) in Chiba prefecture.
 const BASE_URL = `${BASE}/jj/bukken/ichiran/JJ010FJ001/?ar=030&bs=011&ta=12`;
 
+// Designated-city umbrella JIS codes that SUUMO's sc= param doesn't accept.
+// For these, fall back to prefecture-wide fetch + client-side address filter.
+const UMBRELLA_JIS = new Set(['12100']); // designated-city umbrella codes SUUMO sc= doesn't accept -> use prefecture-wide + address filter
+
 const PAGES_TO_FETCH = 3;
 
 // Jittered delay between page fetches (1500–3000 ms) to be polite to the live site.
@@ -78,7 +82,7 @@ function parseListings(html) {
     listings.push({
       source: 'suumo',
       title,
-      price: { yen: parseManYen(priceRaw || ''), raw: toHalfWidth(priceRaw || '') },
+      price: { yen: parseManYen(priceRaw || ''), raw: priceRaw ? toHalfWidth(priceRaw) : null },
       layout: layoutRaw ? toHalfWidth(layoutRaw) : null,
       areaSqm: areaRaw ? parseArea(areaRaw) : null,
       buildingAge: ageRaw ? { raw: ageRaw, years: ageYears } : null,
@@ -103,18 +107,26 @@ function looksBlocked(html) {
 
 // Build a SUUMO listings URL.
 // - jis: JIS municipality code string (e.g. "12204" for Funabashi) — appended as &sc=
+//   Umbrella codes (e.g. 12100 for Chiba City) are skipped; address filter handles those.
 // - page: page number (omit or 1 = no param appended)
 function buildUrl({ jis, page = 1 } = {}) {
   let url = BASE_URL;
-  if (jis && String(jis).trim()) url += `&sc=${encodeURIComponent(jis)}`;
+  if (jis && String(jis).trim() && !UMBRELLA_JIS.has(String(jis).trim())) {
+    url += `&sc=${encodeURIComponent(jis)}`;
+  }
   if (page > 1) url += `&page=${page}`;
   return url;
 }
 
 // Fetch up to PAGES_TO_FETCH pages, parse, then apply client-side filters.
-// SUUMO filters city server-side via sc= so we do NOT apply addressContains.
+// For leaf city codes, sc= does server-side filtering (addressContains stays null).
+// For umbrella codes (e.g. 12100 Chiba City), sc= is skipped and we filter by address.
 async function search(filters) {
   const all = [];
+  // For umbrella JIS codes, sc= is not emitted; filter results by city name instead.
+  const addressContains = (filters.jis && UMBRELLA_JIS.has(String(filters.jis).trim()))
+    ? (filters.cityJa || null)
+    : null;
 
   for (let page = 1; page <= PAGES_TO_FETCH; page++) {
     const url = buildUrl({ jis: filters.jis, page });
@@ -147,14 +159,14 @@ async function search(filters) {
     if (page < PAGES_TO_FETCH) await jitteredSleep();
   }
 
-  // City filtering is handled server-side by sc= param; do NOT pass addressContains.
+  // City filtering: leaf codes use server-side sc=; umbrella codes use addressContains.
   const listings = applyFilters(all, {
     minYen: filters.minYen,
     maxYen: filters.maxYen,
     layoutKey: filters.layoutKey,
     walkMax: filters.walkMax,
     ageMaxYears: filters.ageMaxYears,
-    addressContains: null,
+    addressContains,
   });
 
   return {

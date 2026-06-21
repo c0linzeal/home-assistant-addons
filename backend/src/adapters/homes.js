@@ -96,7 +96,9 @@ function parseListings(html) {
         const transit = parseHomesTransit(transitText);
         station = transit.station;
         walkMin = transit.walkMin;
-        address = addrText || null;
+        // Normalize ヶ→ケ in address so address-filter comparisons work for cities
+        // like 鎌ヶ谷 (raw HTML) vs 鎌ケ谷市 (dropdown value).
+        address = addrText ? addrText.replace(/ヶ/g, 'ケ') : null;
         return false; // break
       }
     });
@@ -210,13 +212,17 @@ async function search(filters) {
   }
 
   // City filtering: no reliable city URL slug → filter by address text client-side.
+  // Normalize ヶ→ケ in the filter value to match the normalized address from parseListings.
+  const addressContains = filters.cityJa
+    ? filters.cityJa.normalize('NFKC').replace(/ヶ/g, 'ケ')
+    : null;
   const listings = applyFilters(all, {
     minYen: filters.minYen,
     maxYen: filters.maxYen,
     layoutKey: filters.layoutKey,
     walkMax: filters.walkMax,
     ageMaxYears: filters.ageMaxYears,
-    addressContains: filters.cityJa || null,
+    addressContains,
   });
 
   return {
