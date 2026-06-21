@@ -69,4 +69,68 @@ function parseListings(html) {
   return listings;
 }
 
-module.exports = { parseListings };
+// JIS municipality code -> AtHome city slug. Only slugs confirmed present on
+// AtHome are mapped; everything else (incl. ward-split Chiba City 12100) falls
+// back to prefecture-wide so we never request a 404 path.
+const CITY_SLUGS = {
+  '12204': 'funabashi-city',
+  '12203': 'ichikawa-city',
+  '12207': 'matsudo-city',
+  '12217': 'kashiwa-city',
+  '12219': 'ichihara-city',
+  '12206': 'kisarazu-city',
+  '12220': 'nagareyama-city',
+  '12224': 'kamagaya-city',
+  '12231': 'inzai-city',
+  '12210': 'mobara-city',
+  '12202': 'choshi-city',
+  '12225': 'kimitsu-city',
+  '12222': 'abiko-city',
+};
+
+function citySlugFor(jis) {
+  return CITY_SLUGS[jis] || null;
+}
+
+// MVP scope: used apartments (chuko mansion) in Chiba.
+function buildUrl({ jis, page = 1 }) {
+  const slug = citySlugFor(jis);
+  const cityPath = slug ? `${slug}/` : '';
+  const pagePath = page > 1 ? `page${page}/` : '';
+  return `${BASE}/mansion/chuko/chiba/${cityPath}list/${pagePath}`;
+}
+
+function matchesLayout(layout, layoutKey) {
+  if (!layoutKey || layoutKey === 'any') return true;
+  const l = (layout || '').toUpperCase();
+  switch (layoutKey) {
+    case 'studio': return /1R|1K|1DK/.test(l);
+    case '1ldk': return l.includes('1LDK');
+    case '2ldk': return l.includes('2LDK');
+    case '3ldk': return l.includes('3LDK');
+    case '4ldk': {
+      const m = l.match(/(\d+)LDK/);
+      return m ? parseInt(m[1], 10) >= 4 : false;
+    }
+    default: return true;
+  }
+}
+
+function applyFilters(listings, opts = {}) {
+  const { minYen, maxYen, layoutKey, walkMax, ageMaxYears, addressContains } = opts;
+  return listings.filter((x) => {
+    const yen = x.price ? x.price.yen : null;
+    if (minYen != null && (yen == null || yen < minYen)) return false;
+    if (maxYen != null && (yen == null || yen > maxYen)) return false;
+    if (!matchesLayout(x.layout, layoutKey)) return false;
+    if (walkMax != null && (x.walkMin == null || x.walkMin > walkMax)) return false;
+    if (ageMaxYears != null) {
+      const yrs = x.buildingAge ? x.buildingAge.years : null;
+      if (yrs == null || yrs > ageMaxYears) return false;
+    }
+    if (addressContains && (!x.address || !x.address.includes(addressContains))) return false;
+    return true;
+  });
+}
+
+module.exports = { parseListings, buildUrl, citySlugFor, applyFilters };
