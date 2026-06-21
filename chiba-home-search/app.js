@@ -193,9 +193,9 @@ function listingCard(x, rate) {
   }
   const bits = [];
   if (x.layout) bits.push(esc(layoutEn(x.layout)));
-  if (x.areaSqm) bits.push(`${x.areaSqm}m&sup2;`);
+  if (x.areaSqm) bits.push(esc(`${x.areaSqm}m²`));
   if (x.buildingAge && x.buildingAge.years != null) {
-    bits.push(x.buildingAge.years === 0 ? "New" : `${x.buildingAge.years} years old`);
+    bits.push(esc(x.buildingAge.years === 0 ? "New" : `${x.buildingAge.years} years old`));
   }
   if (x.walkMin != null) bits.push(`${x.walkMin} min walk`);
   const img = x.thumbnail

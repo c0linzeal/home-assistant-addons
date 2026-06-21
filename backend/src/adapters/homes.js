@@ -111,7 +111,7 @@ function parseListings(html) {
         listings.push({
           source: 'homes',
           title,
-          price: { yen: null, raw: '' },
+          price: { yen: null, raw: null },
           layout: null,
           areaSqm: null,
           buildingAge,

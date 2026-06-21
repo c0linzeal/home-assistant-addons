@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseListings } = require('../src/adapters/suumo');
+const { parseListings, buildUrl } = require('../src/adapters/suumo');
 
 const html = fs.readFileSync(
   path.join(__dirname, 'fixtures', 'suumo-chiba-list.html'), 'utf8');
@@ -41,4 +41,14 @@ test('at least 70% of listings have a layout', () => {
     withLayout >= listings.length * 0.7,
     `layout coverage too low: ${withLayout}/${listings.length}`,
   );
+});
+
+test('suumo buildUrl: base, city (sc), pagination', () => {
+  const base = buildUrl({ jis: '', page: 1 });
+  assert.ok(base.includes('ar=030') && base.includes('bs=011') && base.includes('ta=12'));
+  assert.ok(!base.includes('sc=') && !base.includes('page='));
+  const city = buildUrl({ jis: '12204', page: 1 });
+  assert.ok(city.includes('sc=12204'));
+  const p2 = buildUrl({ jis: '', page: 2 });
+  assert.ok(p2.includes('page=2'));
 });

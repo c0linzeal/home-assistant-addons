@@ -31,7 +31,7 @@ function parseSuumoBuildingAge(text) {
   if (builtYear < 1900 || builtYear > 2100) return null;
   const currentYear = new Date().getFullYear();
   const years = currentYear - builtYear;
-  return years >= 0 ? years : null;
+  return Math.max(0, years);
 }
 
 // Read a field value from a property_unit card by label text.
