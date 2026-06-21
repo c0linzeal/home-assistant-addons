@@ -42,8 +42,9 @@ function parseListings(html) {
     const addressRaw = readDetail($, card, '所在地');
     const transitRaw = readDetail($, card, '交通');
 
-    const title = card.find('.card-box-inner__head .title-wrap__title-text')
-      .first().text().trim();
+    const titleEl = card.find('.card-box-inner__head .title-wrap__title-text').first();
+    const title = $(titleEl).clone().children('p').remove().end()
+      .text().replace(/\s+/g, ' ').trim();
 
     const href = card.find('a.select-link').first().attr('href')
       || card.find('.card-box-open > a').first().attr('href');
