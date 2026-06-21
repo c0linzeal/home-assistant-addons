@@ -3,7 +3,7 @@
 A simple, English-language tool to help you **buy a home in Chiba prefecture (千葉県)**
 when you don't read Japanese.
 
-Japan's property portals (SUUMO, LIFULL HOME'S, AtHome) are Japanese-only and have no
+Japan's property portals (SUUMO, LIFULL HOME'S, AtHome, House Do) are Japanese-only and have no
 English API. Rather than scraping them (fragile and against their terms), this tool acts
 as a **smart link builder**: you enter your budget and what you want in English, and it
 

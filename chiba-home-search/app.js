@@ -147,6 +147,7 @@ function renderPortals(s) {
     { name: "SUUMO", note: "Japan's largest property portal", domain: "suumo.jp", direct: s.type.suumo },
     { name: "LIFULL HOME'S", note: "Huge nationwide listings", domain: "homes.co.jp", direct: s.type.homes },
     { name: "AtHome", note: "Strong local-agent coverage", domain: "athome.co.jp", direct: s.type.athome },
+    { name: "House Do", note: "ハウスドゥ — nationwide franchise", domain: "housedo.com", direct: s.type.housedo },
   ];
 
   $("portals").innerHTML = portals

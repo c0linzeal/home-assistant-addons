@@ -43,6 +43,7 @@ const PROPERTY_TYPES = [
     suumo: "https://suumo.jp/ms/chuko/chiba/",
     homes: "https://www.homes.co.jp/mansion/chuko/chiba/",
     athome: "https://www.athome.co.jp/mansion/chuko/chiba/list/",
+    housedo: "https://www.housedo.com/used_mansion_chiba/",
   },
   {
     key: "new_apartment",
@@ -52,6 +53,7 @@ const PROPERTY_TYPES = [
     suumo: "https://suumo.jp/ms/shinchiku/chiba/",
     homes: "https://www.homes.co.jp/mansion/shinchiku/chiba/",
     athome: "https://www.athome.co.jp/mansion/shinchiku/chiba/list/",
+    housedo: "https://www.housedo.com/new_mansion_chiba/",
   },
   {
     key: "used_house",
@@ -61,6 +63,7 @@ const PROPERTY_TYPES = [
     suumo: "https://suumo.jp/chukoikkodate/chiba/",
     homes: "https://www.homes.co.jp/kodate/chuko/chiba/",
     athome: "https://www.athome.co.jp/kodate/chuko/chiba/list/",
+    housedo: "https://www.housedo.com/used_ikkodate_chiba/",
   },
   {
     key: "new_house",
@@ -70,6 +73,7 @@ const PROPERTY_TYPES = [
     suumo: "https://suumo.jp/ikkodate/chiba/",
     homes: "https://www.homes.co.jp/kodate/shinchiku/chiba/",
     athome: "https://www.athome.co.jp/kodate/shinchiku/chiba/list/",
+    housedo: "https://www.housedo.com/new_ikkodate_chiba/",
   },
   {
     key: "land",
@@ -79,6 +83,7 @@ const PROPERTY_TYPES = [
     suumo: "https://suumo.jp/tochi/chiba/",
     homes: "https://www.homes.co.jp/tochi/chiba/",
     athome: "https://www.athome.co.jp/tochi/chiba/list/",
+    housedo: "https://www.housedo.com/tochi_chiba/",
   },
 ];
 
