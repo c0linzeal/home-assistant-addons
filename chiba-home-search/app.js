@@ -193,7 +193,13 @@ function listingCard(x, rate) {
   }
   const bits = [];
   if (x.layout) bits.push(esc(layoutEn(x.layout)));
-  if (x.areaSqm) bits.push(esc(`${x.areaSqm}m²`));
+  if (x.areaSqm) {
+    let area = `${x.areaSqm}m²`;
+    if (x.landSqm) area += ` (land ${x.landSqm}m²)`;
+    bits.push(esc(area));
+  } else if (x.landSqm) {
+    bits.push(esc(`land ${x.landSqm}m²`));
+  }
   if (x.buildingAge && x.buildingAge.years != null) {
     bits.push(esc(x.buildingAge.years === 0 ? "New" : `${x.buildingAge.years} years old`));
   }
