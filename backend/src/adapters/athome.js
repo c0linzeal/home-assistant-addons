@@ -12,6 +12,14 @@ const PAGES_TO_FETCH = 3;
 const PAGE_DELAY_MS = 1500;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// URL path prefixes per property type.
+const PATHS = {
+  used_apartment: 'mansion/chuko',
+  new_apartment:  'mansion/shinchiku',
+  used_house:     'kodate/chuko',
+  new_house:      'kodate/shinchiku',
+};
+
 // AtHome detail rows are label-keyed: <strong>LABEL</strong><span>VALUE</span>.
 // Match by label text, not position (row count varies per card).
 function readDetail($, card, label) {
@@ -35,42 +43,129 @@ function pickThumbnail($, card) {
   return thumb;
 }
 
-function parseListings(html) {
+// Parse layout and areaSqm from p.madori text like "2LDK～4LDK（58.65㎡～90.93㎡）"
+function parseMadori(text) {
+  if (!text) return { layout: null, areaSqm: null };
+  const s = toHalfWidth(text).trim();
+  // Layout: everything before the first （ or whitespace
+  const layoutM = s.match(/^([^（(]+)/);
+  const layout = layoutM ? layoutM[1].trim() : null;
+  // Area: first number followed by m2 / ㎡ / m²
+  const areaM = s.match(/([\d.]+)\s*(?:m2|㎡|m²)/i);
+  const areaSqm = areaM ? parseFloat(areaM[1]) : null;
+  return { layout, areaSqm };
+}
+
+// Parse listings from an AtHome HTML page.
+// propertyType: 'used_apartment' | 'new_apartment' | 'used_house' | 'new_house'
+function parseListings(html, propertyType = 'used_apartment') {
   const $ = cheerio.load(html);
   const listings = [];
-  $('div.card-box.open').each((_, el) => {
-    const card = $(el);
-    const priceText = card.find('.property-price').first().text();
-    const layoutRaw = readDetail($, card, '間取り');
-    const areaRaw = readDetail($, card, '専有面積');
-    const ageRaw = readDetail($, card, '築年月');
-    const addressRaw = readDetail($, card, '所在地');
-    const transitRaw = readDetail($, card, '交通');
+  const isHouse = propertyType === 'used_house' || propertyType === 'new_house';
 
-    const titleEl = card.find('.card-box-inner__head .title-wrap__title-text').first();
-    const title = $(titleEl).clone().children('p').remove().end()
-      .text().replace(/\s+/g, ' ').trim();
+  if (propertyType === 'new_apartment') {
+    // New mansion uses li.mansion_list_item — a structurally different card.
+    $('li.mansion_list_item').each((_, el) => {
+      const card = $(el);
 
-    const href = card.find('a.select-link').first().attr('href')
-      || card.find('.card-box-open > a').first().attr('href');
-    const url = href ? (href.startsWith('http') ? href : BASE + href) : null;
+      // Title: p.title_area span:first-child
+      const title = card.find('p.title_area span').first().text().trim() || null;
 
-    const transit = transitRaw ? parseTransit(transitRaw) : null;
+      // URL: first link containing /mansion/shinchiku/
+      const href = card.find('a[href*="/mansion/shinchiku/"]').first().attr('href') || null;
+      const url = href ? (href.startsWith('http') ? href : BASE + href) : null;
 
-    listings.push({
-      source: 'athome',
-      title,
-      price: { yen: parseManYen(priceText), raw: toHalfWidth(priceText) },
-      layout: layoutRaw ? toHalfWidth(layoutRaw) : null,
-      areaSqm: areaRaw ? parseArea(areaRaw) : null,
-      buildingAge: ageRaw ? { raw: ageRaw, years: parseBuildingAgeYears(ageRaw) } : null,
-      walkMin: transit ? transit.walkMin : null,
-      station: transit ? transit.station : null,
-      address: addressRaw ? toHalfWidth(addressRaw) : null,
-      thumbnail: pickThumbnail($, card),
-      url,
+      if (!title && !url) return; // skip degenerate entries
+
+      // Thumbnail: img.lazyload data-src
+      const thumbImg = card.find('img.lazyload').first();
+      const thumbnail = thumbImg.attr('data-src') || null;
+
+      // Price: p.price text e.g. "3998万円～8998万円"
+      const priceRaw = card.find('p.price').first().text().trim() || null;
+
+      // Layout + area: p.madori text e.g. "2LDK～4LDK（58.65㎡～90.93㎡）"
+      const madoriRaw = card.find('p.madori').first().text().trim() || null;
+      const { layout, areaSqm } = parseMadori(madoriRaw);
+
+      // other_info rows: p.other_info_head + sibling div text
+      let addressRaw = null;
+      let transitRaw = null;
+      card.find('div.other_info_row').each((__, row) => {
+        const head = $(row).find('p.other_info_head').text().trim();
+        const val = $(row).find('div').first().text().trim() || null;
+        if (head === '所在地') addressRaw = val;
+        if (head === '交通') transitRaw = val;
+      });
+
+      const transit = transitRaw ? parseTransit(transitRaw) : null;
+
+      listings.push({
+        source: 'athome',
+        title,
+        price: { yen: parseManYen(priceRaw || ''), raw: priceRaw ? toHalfWidth(priceRaw) : null },
+        layout: layout || null,
+        areaSqm,
+        landSqm: null, // no land area for apartments
+        buildingAge: null, // new builds have 引渡可能時期, not 築年月
+        walkMin: transit ? transit.walkMin : null,
+        station: transit ? transit.station : null,
+        address: addressRaw ? toHalfWidth(addressRaw) : null,
+        thumbnail,
+        url,
+      });
     });
-  });
+  } else {
+    // used_apartment, used_house, new_house: all use div.card-box.open
+    $('div.card-box.open').each((_, el) => {
+      const card = $(el);
+      const priceText = card.find('.property-price').first().text();
+      const layoutRaw = readDetail($, card, '間取り');
+
+      // Area fields differ by type:
+      //   apartments: 専有面積 → areaSqm, no landSqm
+      //   houses: 建物面積 → areaSqm, 土地面積 → landSqm
+      let areaRaw, landRaw;
+      if (isHouse) {
+        areaRaw = readDetail($, card, '建物面積');
+        landRaw = readDetail($, card, '土地面積');
+      } else {
+        areaRaw = readDetail($, card, '専有面積');
+        landRaw = null;
+      }
+
+      // Age label: used types use 築年月; new house uses 完成時期
+      const ageRaw = readDetail($, card, '築年月') || readDetail($, card, '完成時期');
+      const addressRaw = readDetail($, card, '所在地');
+      const transitRaw = readDetail($, card, '交通');
+
+      const titleEl = card.find('.card-box-inner__head .title-wrap__title-text').first();
+      const title = $(titleEl).clone().children('p').remove().end()
+        .text().replace(/\s+/g, ' ').trim();
+
+      const href = card.find('a.select-link').first().attr('href')
+        || card.find('.card-box-open > a').first().attr('href');
+      const url = href ? (href.startsWith('http') ? href : BASE + href) : null;
+
+      const transit = transitRaw ? parseTransit(transitRaw) : null;
+
+      listings.push({
+        source: 'athome',
+        title,
+        price: { yen: parseManYen(priceText), raw: toHalfWidth(priceText) },
+        layout: layoutRaw ? toHalfWidth(layoutRaw) : null,
+        areaSqm: areaRaw ? parseArea(areaRaw) : null,
+        landSqm: landRaw ? parseArea(landRaw) : null,
+        buildingAge: ageRaw ? { raw: ageRaw, years: parseBuildingAgeYears(ageRaw) } : null,
+        walkMin: transit ? transit.walkMin : null,
+        station: transit ? transit.station : null,
+        address: addressRaw ? toHalfWidth(addressRaw) : null,
+        thumbnail: pickThumbnail($, card),
+        url,
+      });
+    });
+  }
+
   return listings;
 }
 
@@ -81,9 +176,9 @@ function looksBlocked(html) {
   if (!html) return true;
   if (/認証中/.test(html)) return true;
   if (/onProtectionInitialized|Reese84|Incapsula|_Incapsula_Resource/.test(html)) return true;
-  // A real listings page is large and contains the card container; a challenge
+  // A real listings page is large and contains card containers; a challenge
   // shell is tiny. Treat a short page with no cards as blocked.
-  if (html.length < 20000 && !/card-box open/.test(html)) return true;
+  if (html.length < 20000 && !/card-box open|mansion_list_item/.test(html)) return true;
   return false;
 }
 
@@ -110,12 +205,16 @@ function citySlugFor(jis) {
   return CITY_SLUGS[jis] || null;
 }
 
-// MVP scope: used apartments (chuko mansion) in Chiba.
-function buildUrl({ jis, page = 1 }) {
+// Build an AtHome listings URL.
+// - propertyType: one of used_apartment|new_apartment|used_house|new_house
+// - jis: JIS municipality code (optional city slug segment)
+// - page: page number (>1 appends pageN/ to path)
+function buildUrl({ propertyType = 'used_apartment', jis, page = 1 } = {}) {
+  const pathPrefix = PATHS[propertyType] || PATHS.used_apartment;
   const slug = citySlugFor(jis);
   const cityPath = slug ? `${slug}/` : '';
   const pagePath = page > 1 ? `page${page}/` : '';
-  return `${BASE}/mansion/chuko/chiba/${cityPath}list/${pagePath}`;
+  return `${BASE}/${pathPrefix}/chiba/${cityPath}list/${pagePath}`;
 }
 
 function matchesLayout(layout, layoutKey) {
@@ -155,11 +254,12 @@ function applyFilters(listings, opts = {}) {
 // price/layout/walk/age refine controls are not GET-addressable). When a city
 // has no AtHome slug we search prefecture-wide and narrow by address text.
 async function search(filters) {
+  const propertyType = filters.propertyType || 'used_apartment';
   const slug = citySlugFor(filters.jis);
   const addressContains = (!slug && filters.cityJa && filters.jis) ? filters.cityJa : null;
   const all = [];
   for (let page = 1; page <= PAGES_TO_FETCH; page++) {
-    const url = buildUrl({ jis: filters.jis, page });
+    const url = buildUrl({ propertyType, jis: filters.jis, page });
     let html;
     try {
       html = await fetchHtml(url, { timeoutMs: 12000 });
@@ -173,7 +273,7 @@ async function search(filters) {
       }
       break; // later page blocked: keep what we have
     }
-    const parsed = parseListings(html);
+    const parsed = parseListings(html, propertyType);
     if (parsed.length === 0) break;
     all.push(...parsed);
     if (page < PAGES_TO_FETCH) await sleep(PAGE_DELAY_MS);
