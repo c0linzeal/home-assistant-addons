@@ -5,6 +5,10 @@
 
 const $ = (id) => document.getElementById(id);
 
+const SOURCE_NAMES = { athome: "AtHome", suumo: "SUUMO", homes: "LIFULL HOME'S", housedo: "House Do" };
+const LAYOUT_EN = { "ワンルーム": "Studio", "1R": "Studio", "1K": "1K", "1DK": "1DK" };
+function layoutEn(l) { if (!l) return ""; return LAYOUT_EN[l] || l; }
+
 /* ---------- Populate dropdowns ---------- */
 function fillSelect(el, items, labelFn, valueFn) {
   el.innerHTML = "";
@@ -179,33 +183,50 @@ function esc(str) {
     .replace(/"/g, "&quot;");
 }
 
-function listingCard(x) {
-  const yen = x.price && x.price.yen ? `¥${fmtInt(x.price.yen)}` : esc((x.price && x.price.raw) || "—");
+function listingCard(x, rate) {
+  let yen;
+  if (x.price && x.price.yen) {
+    yen = `¥${fmtInt(x.price.yen)}`;
+    if (rate && x.price.yen) yen += ` (&#x2248;$${fmtInt(Math.round(x.price.yen / rate))})`;
+  } else {
+    yen = esc((x.price && x.price.raw) || "—");
+  }
   const bits = [];
-  if (x.layout) bits.push(esc(x.layout));
-  if (x.areaSqm) bits.push(esc(`${x.areaSqm}m²`));
-  if (x.buildingAge && x.buildingAge.years != null) bits.push(`${x.buildingAge.years}y old`);
+  if (x.layout) bits.push(esc(layoutEn(x.layout)));
+  if (x.areaSqm) bits.push(`${x.areaSqm}m&sup2;`);
+  if (x.buildingAge && x.buildingAge.years != null) {
+    bits.push(x.buildingAge.years === 0 ? "New" : `${x.buildingAge.years} years old`);
+  }
   if (x.walkMin != null) bits.push(`${x.walkMin} min walk`);
   const img = x.thumbnail
     ? `<img src="${esc(x.thumbnail)}" alt="" loading="lazy">`
     : `<div class="noimg">No photo</div>`;
-  const loc = [x.address ? esc(x.address) : "", x.station ? esc(x.station) + "駅" : ""]
-    .filter(Boolean).join(" · ");
-  return `<a class="listing" target="_blank" rel="noopener" href="${esc(x.url || "#")}">
-    <div class="listing-thumb">${img}</div>
+  const loc = [x.address ? esc(x.address) : "", x.station ? esc(x.station) + "&#39550;" : ""]
+    .filter(Boolean).join(" &middot; ");
+  const srcName = SOURCE_NAMES[x.source] || esc(x.source || "");
+  const translateUrl = "https://translate.google.com/translate?sl=ja&tl=en&u=" + encodeURIComponent(x.url || "");
+  return `<div class="listing">
+    <a class="listing-imglink" target="_blank" rel="noopener" href="${esc(x.url || "#")}">
+      <div class="listing-thumb">${img}</div>
+    </a>
     <div class="listing-body">
       <div class="listing-price">${yen}</div>
       <div class="listing-title">${esc(x.title || "")}</div>
-      <div class="listing-meta">${bits.join(" · ")}</div>
+      <div class="listing-meta">${bits.join(" &middot; ")}</div>
       <div class="listing-loc">${loc}</div>
+      <span class="source-badge">${srcName}</span>
     </div>
-  </a>`;
+    <div class="listing-links">
+      <a href="${esc(x.url || "#")}" target="_blank" rel="noopener">View on ${srcName} &#x2197;</a>
+      <a href="${esc(translateUrl)}" target="_blank" rel="noopener">View in English &#x2197;</a>
+    </div>
+  </div>`;
 }
 
 async function renderLiveListings(s) {
   const statusEl = $("live-status");
   const listEl = $("live-listings");
-  statusEl.textContent = "Searching AtHome…";
+  statusEl.textContent = "Searching portals…";
   listEl.innerHTML = "";
 
   const params = new URLSearchParams();
@@ -217,23 +238,48 @@ async function renderLiveListings(s) {
   if (s.usesAge && s.age.key !== "any") params.set("age", s.age.key);
   if (s.walk.key !== "any") params.set("walk", s.walk.key);
 
+  const rate = parseNum($("rate").value) || 150;
+
   try {
     const res = await fetch(`/api/search?${params.toString()}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const portal = (data.portals || [])[0];
-    if (!portal || portal.status !== "ok") {
-      statusEl.textContent = "AtHome live search is unavailable right now — use the links above.";
-      return;
+    const portals = data.portals || [];
+    const totalListings = portals.reduce((sum, p) => sum + ((p.listings || []).length), 0);
+    statusEl.textContent = `Searched ${portals.length} site(s) · ${totalListings} listing${totalListings !== 1 ? "s" : ""}${data.cached ? " (cached)" : ""}`;
+
+    portals.forEach(function(p) {
+      const srcName = SOURCE_NAMES[p.source] || p.source;
+      const listings = p.listings || [];
+      let statusNote;
+      if (p.status !== "ok") {
+        statusNote = "unavailable";
+      } else if (!listings.length) {
+        statusNote = `no matches (scanned ${p.scanned || 0})`;
+      } else {
+        statusNote = `${listings.length} listing${listings.length !== 1 ? "s" : ""}`;
+      }
+
+      const group = document.createElement("div");
+      group.className = "portal-group";
+
+      const header = document.createElement("h3");
+      header.textContent = `${srcName} — ${statusNote}`;
+      group.appendChild(header);
+
+      if (p.status === "ok" && listings.length) {
+        const grid = document.createElement("div");
+        grid.className = "live-listings";
+        grid.innerHTML = listings.map(function(x) { return listingCard(x, rate); }).join("");
+        group.appendChild(grid);
+      }
+
+      listEl.appendChild(group);
+    });
+
+    if (!portals.length) {
+      statusEl.textContent = "No portals returned — use the links above.";
     }
-    if (!(portal.listings && portal.listings.length)) {
-      statusEl.textContent =
-        `No matches in AtHome's latest used-apartment listings for these filters (scanned ${portal.scanned || 0}). Try a wider budget, or use the links above.`;
-      return;
-    }
-    statusEl.textContent =
-      `${portal.listings.length} matching used apartments on AtHome${data.cached ? " (cached)" : ""}:`;
-    listEl.innerHTML = portal.listings.map(listingCard).join("");
   } catch (err) {
     statusEl.textContent = "Couldn't reach the live search service — use the links above.";
   }

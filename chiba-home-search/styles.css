@@ -221,3 +221,60 @@ footer p { color: var(--muted); font-size: 0.85rem; max-width: 70ch; }
 @media (max-width: 540px) {
   .live-listings { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 }
+
+/* ---------- Portal groups (live listings) ---------- */
+.portal-group { margin: 0 0 28px; }
+.portal-group h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--line);
+}
+
+/* Card is now a div — keep the card look, remove anchor decoration */
+.listing {
+  cursor: default;
+  text-decoration: none;
+}
+.listing-imglink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.listing-imglink:hover .listing-thumb img { opacity: 0.9; }
+
+/* Source badge */
+.source-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--sand);
+  color: var(--teal-dark);
+  border: 1px solid var(--line);
+  margin-top: 6px;
+}
+
+/* Two-link footer row */
+.listing-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--line);
+}
+.listing-links a {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--teal-dark);
+  text-decoration: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--teal);
+  background: #fff;
+  white-space: nowrap;
+}
+.listing-links a:hover { background: #eef7f8; }
