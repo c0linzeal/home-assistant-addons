@@ -189,4 +189,4 @@ async function search(filters) {
   return { source: 'athome', status: 'ok', count: listings.length, listings, scanned: all.length };
 }
 
-module.exports = { parseListings, buildUrl, citySlugFor, applyFilters, search, looksBlocked };
+module.exports = { source: 'athome', parseListings, buildUrl, citySlugFor, applyFilters, search, looksBlocked };

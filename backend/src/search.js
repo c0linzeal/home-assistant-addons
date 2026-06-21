@@ -1,30 +1,36 @@
 'use strict';
+
 const athome = require('./adapters/athome');
+const housedo = require('./adapters/housedo');
 const { getCached, setCached } = require('./lib/cache');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
-function cacheKey(filters) {
-  return 'athome:' + JSON.stringify(filters);
+const ADAPTERS = [athome, housedo];
+
+async function runOne(adapter, filters) {
+  const key = adapter.source + ':' + JSON.stringify(filters);
+  const cached = getCached(key);
+  if (cached) return cached;
+  try {
+    const portal = await adapter.search(filters);
+    setCached(key, portal, CACHE_TTL_MS);
+    return portal;
+  } catch (err) {
+    return {
+      source: adapter.source,
+      status: 'unavailable',
+      error: String(err && err.message ? err.message : err),
+      count: 0,
+      listings: [],
+      scanned: 0,
+    };
+  }
 }
 
 async function runSearch(filters) {
-  const key = cacheKey(filters);
-  const cached = getCached(key);
-  if (cached) return { portals: [cached], cached: true };
-
-  let portal;
-  try {
-    portal = await athome.search(filters);
-    setCached(key, portal, CACHE_TTL_MS);
-  } catch (err) {
-    portal = {
-      source: 'athome', status: 'unavailable',
-      error: String(err && err.message ? err.message : err),
-      count: 0, listings: [], scanned: 0,
-    };
-  }
-  return { portals: [portal], cached: false };
+  const portals = await Promise.all(ADAPTERS.map((a) => runOne(a, filters)));
+  return { portals };
 }
 
-module.exports = { runSearch };
+module.exports = { runSearch, ADAPTERS };
