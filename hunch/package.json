@@ -27,18 +27,18 @@
     "productName": "Hunch",
     "directories": {
       "output": "dist",
-      "buildResources": "build"
+      "buildResources": "assets"
     },
     "files": [
       "src/**/*",
-      "build/icon.png",
+      "assets/icon.png",
       "package.json"
     ],
     "win": {
       "target": [
         "nsis"
       ],
-      "icon": "build/icon.png"
+      "icon": "assets/icon.png"
     },
     "nsis": {
       "oneClick": false,
@@ -50,7 +50,7 @@
     },
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "build/icon.png"
+      "icon": "assets/icon.png"
     }
   },
   "repository": {

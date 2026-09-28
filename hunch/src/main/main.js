@@ -85,7 +85,7 @@ function createWindow() {
     show: false,
     title: 'Hunch',
     backgroundColor: c.bg,
-    icon: path.join(__dirname, '../../build/icon.png'),
+    icon: path.join(__dirname, '../../assets/icon.png'),
     titleBarStyle: 'hidden',
     ...(IS_MAC
       ? { trafficLightPosition: { x: 18, y: 19 }, vibrancy: 'sidebar', visualEffectState: 'followWindow' }
@@ -205,7 +205,7 @@ function registerIpc() {
   ipcMain.handle('openExternal', (_e, url) => openExternal(url));
   ipcMain.on('startDrag', (e, p) => {
     if (!known(p)) return;
-    const icon = nativeImage.createFromPath(path.join(__dirname, '../../build/icon.png')).resize({ width: 48, height: 48 });
+    const icon = nativeImage.createFromPath(path.join(__dirname, '../../assets/icon.png')).resize({ width: 48, height: 48 });
     e.sender.startDrag({ file: p, icon });
   });
   ipcMain.handle('contextMenu', (e, p) => new Promise((resolve) => {
