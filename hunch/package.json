@@ -1,0 +1,61 @@
+{
+  "name": "hunch",
+  "productName": "Hunch",
+  "version": "0.1.0",
+  "description": "Find files on your PC by describing them. A Finder-style file finder with Jev tagging and optional OpenAI semantic search.",
+  "main": "src/main/main.js",
+  "author": "c0linzeal",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "demo": "electron . --demo",
+    "test": "node --test test/*.test.js",
+    "dist": "electron-builder --win nsis",
+    "dist:portable": "electron-builder --win portable",
+    "dist:mac": "electron-builder --mac dmg"
+  },
+  "dependencies": {
+    "unpdf": "^1.8.1"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "io.github.c0linzeal.hunch",
+    "productName": "Hunch",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Hunch",
+      "artifactName": "Hunch-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/c0linzeal/home-assistant-addons.git",
+    "directory": "hunch"
+  }
+}

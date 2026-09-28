@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hunch</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sidebar-top drag">
+        <div class="brand"><span class="brand-mark" data-icon="logo"></span><span>Hunch</span></div>
+      </div>
+      <nav id="sidebar-nav" aria-label="Locations"></nav>
+      <div id="index-status">
+        <span class="status-ring"><svg viewBox="0 0 20 20"><circle class="track" cx="10" cy="10" r="8"/><circle class="bar" cx="10" cy="10" r="8"/></svg></span>
+        <span class="status-text"><span class="status-line"></span><span class="status-sub"></span></span>
+        <button class="icon-btn" id="settings-btn" title="Settings (Ctrl+,)" data-icon="gear"></button>
+      </div>
+    </aside>
+
+    <header id="toolbar" class="drag">
+      <div class="nav-buttons no-drag">
+        <button class="icon-btn" id="back-btn" title="Back" data-icon="chevronLeft" disabled></button>
+        <button class="icon-btn" id="fwd-btn" title="Forward" data-icon="chevronRight" disabled></button>
+      </div>
+      <div class="location">
+        <div id="location-title">Recents</div>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <div class="segmented no-drag" id="view-toggle" role="radiogroup" aria-label="View">
+        <button data-view="icons" title="Icons (Ctrl+1)" data-icon="grid"></button>
+        <button data-view="list" title="List (Ctrl+2)" data-icon="list"></button>
+      </div>
+      <button class="icon-btn no-drag" id="inspector-btn" title="Show preview" data-icon="sidebarRight"></button>
+      <div id="search-box" class="no-drag">
+        <span class="search-icon" data-icon="search"></span>
+        <input id="search" type="text" spellcheck="false" autocomplete="off" placeholder="Describe the file you're looking for…" aria-label="Describe the file you're looking for">
+        <span id="ai-indicator" hidden title="Jev is reading your description"><span data-icon="sparkle"></span></span>
+        <button id="search-clear" class="clear-btn" hidden title="Clear" data-icon="xCircle"></button>
+      </div>
+    </header>
+
+    <div id="scope-bar" hidden>
+      <div class="scope-left">
+        <span class="scope-label">Search:</span>
+        <button class="scope-pill" data-scope="all">This PC</button>
+        <button class="scope-pill" data-scope="current" id="scope-current"></button>
+      </div>
+      <div class="scope-right">
+        <span class="scope-label" id="understood-label">Understood as:</span>
+        <div id="chips"></div>
+      </div>
+    </div>
+
+    <section id="content" tabindex="0" aria-label="Files">
+      <div id="list-view" class="view">
+        <div class="list-header" id="list-header"></div>
+        <div class="list-scroll" id="list-scroll"><div class="list-spacer" id="list-spacer"></div></div>
+      </div>
+      <div id="icon-view" class="view" hidden><div class="icon-grid" id="icon-grid"></div></div>
+      <div id="empty-state" hidden></div>
+    </section>
+
+    <footer id="pathbar">
+      <div id="crumbs"></div>
+      <div id="count"></div>
+    </footer>
+
+    <aside id="inspector" aria-label="Preview"></aside>
+  </div>
+
+  <div id="quicklook" hidden>
+    <div class="ql-window" role="dialog" aria-modal="true">
+      <div class="ql-bar">
+        <button class="icon-btn" id="ql-close" title="Close (Esc)" data-icon="x"></button>
+        <div class="ql-title" id="ql-title"></div>
+        <button class="btn" id="ql-open">Open</button>
+      </div>
+      <div class="ql-body" id="ql-body"></div>
+    </div>
+  </div>
+
+  <div id="sheet-backdrop" hidden>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <div id="toast" hidden></div>
+
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
